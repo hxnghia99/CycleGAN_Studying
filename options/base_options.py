@@ -1,0 +1,121 @@
+#=======================================================================================#
+#                                                                                       #
+#   File name   : base_options.py                                                       #
+#   Author      : hxnghia99                                                             #
+#   Created date: May 18th, 2023                                                        #
+#   GitHub      : https://github.com/hxnghia99/CycleGAN_Styding                         #
+#   Description : setting the base options for cycleGAN training and testing            #
+#                                                                                       #
+#=======================================================================================#
+
+import argparse
+import os
+import torch
+import model
+import data
+
+
+class BaseOptions():
+    """This class defines options used during both training and testing time.
+
+    It also gathers additional options defined in <modify_commandline_options> functions in both dataset class and model class.
+    """
+
+    def __init__(self):
+        """Reset the class; indicates the class hasn't been initailized"""
+        self.initialized = False
+
+    def initialize(self, parser):       #Create override function in child_class and call this function 
+        self.initialized = True
+        """Define the common options that are used in both training and test."""
+        # basic parameters
+        parser.add_argument('--dataroot', type=str, default="./datasets/nonfire2smallfire3", required=False, help='path to images (should have subfolders trainA, trainB, valA, valB, etc)')
+        parser.add_argument('--name', type=str, default='nonfire2smallfire3', help='name of the experiment. It decides where to store samples and models')
+        parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
+        parser.add_argument('--checkpoints_dir', type=str, default='./checkpoints', help='models are saved here')
+        # model parameters
+        parser.add_argument('--model', type=str, default='cycle_gan', help='chooses which model to use: [cycle_gan | pix2pix | test | colorization]')
+        parser.add_argument('--input_nc', type=int, default=3, help='# of input image channels: 3 for RGB and 1 for grayscale')
+        parser.add_argument('--output_nc', type=int, default=3, help='# of output image channels: 3 for RGB and 1 for grayscale')
+        parser.add_argument('--ngf', type=int, default=64, help='# of gen filters in the last conv layer')
+        parser.add_argument('--ndf', type=int, default=64, help='# of discrim filters in the first conv layer')
+        parser.add_argument('--netD', type=str, default='basic', help='specify discriminator architecture [basic | n_layers | pixel]. The basic model is a 70x70 PatchGAN')
+        parser.add_argument('--netG', type=str, default='resnet_9blocks', help='specify generator architecture [resnet_9blocks | resnet_6blocks | unet_256 | unet_128]')
+        parser.add_argument('--norm', type=str, default='instance', help='instance normalization or batch normalization [instance | batch | none]')
+        # dataset parameters
+        parser.add_argument('--dataset_mode', type=str, default='unaligned', help='chooses how datasets are loaded. [unaligned | aligned | single | colorization]')
+        parser.add_argument('--direction', type=str, default='AtoB', help='AtoB or BtoA')
+        parser.add_argument('--serial_batches', action='store_true', help='if true, takes images in order to make batches, otherwise takes them randomly')
+        parser.add_argument('--num_threads', default=4, type=int, help='# threads for loading data')
+        parser.add_argument('--batch_size', type=int, default=1, help='input batch size')
+        parser.add_argument('--load_size', type=int, default=256, help='scale images to this size')
+        parser.add_argument('--crop_size', type=int, default=224, help='then crop to this size')
+        parser.add_argument('--max_dataset_size', type=int, default=float("inf"), help='Maximum number of samples allowed per dataset. If the dataset directory contains more than max_dataset_size, only a subset is loaded.')
+        parser.add_argument('--preprocess', type=str, default='resize_and_crop', help='scaling and cropping of images at load time [resize_and_crop | crop | scale_width | scale_width_and_crop | none]')
+        parser.add_argument('--no_flip', action='store_true', help='if specified, do not flip the images for data augmentation')
+
+        return parser
+    
+    def gather_options(self):
+        """Add additional model-specific and dataset-specific options from class-internal function <modify_commandline_option>
+        
+        In total: base-options + train/test-options + model-options + dataset-options
+        """
+        #Create parser for base-options first (override function) + train/test-options: only once
+        if not self.initialized:
+            parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+            parser = self.initialize(parser)
+        
+        #Load the basic-options + train/test-options
+        opt, _ = parser.parse_known_args()
+        self.isTrain = opt.phase == "train"
+        
+        #Load model-options
+        model_option_setter = model.get_option_setter(opt.model)       #static func <modify_commandline_option>
+        parser = model_option_setter(parser, self.isTrain)
+        
+        #Load dataset-options
+        dataset_option_setter = data.get_option_setter(opt.dataset_mode)    #static func <modify_commandline_option>
+        parser = dataset_option_setter(parser, self.isTrain)                            
+        
+        #save parser and return options
+        self.parser = parser
+        return parser.parse_args()                                      #parse again with new options
+    
+    def save_options(self, opt):
+        """Save options into text file"""   
+        message = ''
+        message += '----------------- Options ---------------\n'
+        for k, v in sorted(vars(opt).items()):
+            comment = ''
+            default = self.parser.get_default(k)
+            if v != default:
+                comment = '\t[default: %s]' % str(default)
+            message += '{:>25}: {:<30}{}\n'.format(str(k), str(v), comment)
+        message += '----------------- End -------------------'
+
+        #save to file
+        expr_dir = os.path.join(opt.checkpoints_dir, opt.name)      #checkpoints/[experiment_name]
+        if not os.path.exists(expr_dir):
+            os.makedirs(expr_dir)
+        file_name = os.path.join(expr_dir, '{}_options.txt'.format(opt.phase))
+        with open(file_name, 'wt') as opt_file:
+            opt_file.write(message)
+            opt_file.write('\n')
+    
+    def parse(self):
+        opt = self.gather_options()
+        self.save_options(opt)
+
+        # Set gpu usage: use only 1 gpu (the first)
+        str_ids = opt.gpu_ids.split(',')
+        opt.gpu_ids = []
+        for str_id in str_ids:
+            id = int(str_id)
+            if id >= 0:
+                opt.gpu_ids.append(id)
+        if len(opt.gpu_ids) > 0:
+            torch.cuda.set_device(opt.gpu_ids[0])
+        
+        self.opt = opt
+        return self.opt
