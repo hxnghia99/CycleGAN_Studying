@@ -12,6 +12,7 @@
 
 import torch.utils.data as data
 from abc import ABC, abstractmethod
+import os
 
 class BaseDataset(data.Dataset, ABC):
     """This class is an abstract base class (ABC) for datasets.
@@ -20,6 +21,7 @@ class BaseDataset(data.Dataset, ABC):
     -- <__init__>:                      initialize the class, first call BaseDataset.__init__(self, opt).
     -- <__len__>:                       return the size of dataset.
     -- <__getitem__>:                   get a data point.
+    -- <get_transform>:                 (optionally) add transformation methods to each data (apply to both image and label)
     -- <modify_commandline_options>:    (optionally) add dataset-specific options and set default options.
     """
     
@@ -38,7 +40,7 @@ class BaseDataset(data.Dataset, ABC):
         return 0
     
     @abstractmethod
-    def __getitem__(self, index: int):
+    def __getitem__(self, index: int) -> dict:
         """Return a data point including image, image_path, image_label
         
         Parameters:
@@ -46,6 +48,21 @@ class BaseDataset(data.Dataset, ABC):
         
         Returns:
             - a dictionary of data
+        """
+        pass
+
+    @abstractmethod
+    def data_transform(self, image, label, itp_method):
+        """Define the identical transformation for both image and label
+        
+        Parameters:
+            - img:          input image
+            - label:        segmentation label or bbox label
+            - itp_method:   interpolation method when reszing image
+
+        Returns:
+            - img:          ouput image after data transformation
+            - label:        segmentation label after data transformation
         """
         pass
 
@@ -61,3 +78,27 @@ class BaseDataset(data.Dataset, ABC):
             the modified parser.
         """
         return parser
+    
+
+
+#Check wether the file is an image
+IMG_EXTENSIONS = [
+    '.jpg', '.JPG', '.jpeg', '.JPEG',
+    '.ppm', '.PPM', '.bmp', '.BMP',
+    '.tif', '.TIF', '.tiff', '.TIFF',
+    #'.png', '.PNG',
+]
+def is_image_file(filename: str) -> bool:
+    return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
+
+#Save all directories of images into a list
+def make_dataset_path(dir: str, max_dataset_size=float("inf")) -> list:
+    assert os.path.isdir(dir), '%s is not a valid directory' % dir
+
+    image_paths = []
+    for root, _, fnames in sorted(os.walk(dir)):
+        for fname in fnames:
+            if is_image_file(fname):
+                image_path = os.path.join(root, fname)
+                image_paths.append(image_path)
+    return image_paths[:min(max_dataset_size, len(image_paths))]

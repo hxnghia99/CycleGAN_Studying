@@ -55,3 +55,15 @@ def get_option_setter(model_name: str):
     """Return the static method <modify_commandline_options> of the model class."""
     model_class = find_model_using_name(model_name)
     return model_class.modify_commandline_options
+
+
+
+def create_model(opt):
+    """Create a model given the option.
+
+    This is the main interface between this package and 'train.py'/'test.py'
+    """
+    model = find_model_using_name(opt.model)
+    instance = model(opt)
+    print("Model [%s] was created" % type(instance).__name__)
+    return instance

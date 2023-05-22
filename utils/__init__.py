@@ -1,17 +1,12 @@
+
 #=======================================================================================#
 #                                                                                       #
-#   File name   : main.py                                                               #
+#   File name   : __init__.py                                                           #
 #   Author      : hxnghia99                                                             #
-#   Created date: May 18th, 2023                                                        #
+#   Created date: May 19th, 2023                                                        #
 #   GitHub      : https://github.com/hxnghia99/CycleGAN_Styding                         #
-#   Description : the main code that create and train model based on settings           #
+#   Description : contain support utilizations for the project                          #
 #                                                                                       #
 #=======================================================================================#
 
-""" General-purpose training script for image-to-image translation based on CycleGAN
-    Change the options in options/base_options.py and options/train_options.py  """
-
-from options.train_options import TrainOptions
-
-
-opt = TrainOptions().parse()
+"""This package includes a miscellaneous collection of useful helper functions."""

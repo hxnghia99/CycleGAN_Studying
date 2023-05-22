@@ -16,6 +16,16 @@
 --dataset_mode
 --checkpoints_dir
 --gpu_ids
+--dataroot
+--max_dataset_size
+--direction
+--input_nc
+--output_nc
+--serial_batches
+--preprocess
+--batch_size
+--batch_serials
+--num_threads
 
 
 
