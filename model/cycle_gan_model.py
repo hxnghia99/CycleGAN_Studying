@@ -13,6 +13,7 @@ from .base_model import BaseModel, define_G, define_D, GANLoss
 from utils.image_pool import ImagePool
 import torch
 import itertools
+from torchvision.ops import masks_to_boxes
 
 class CycleGANModel(BaseModel):
     """
@@ -82,8 +83,13 @@ class CycleGANModel(BaseModel):
         AtoB = self.opt.direction == 'AtoB'
         self.real_A = input['A_image' if AtoB else 'B_image'].to(self.device)
         self.real_B = input['B_image' if AtoB else 'A_image'].to(self.device)
-        self.label_A = input['A_label'].to(self.device)
-        self.label_B = input['B_label'].to(self.device)
+
+        self.label_A = input['A_label' if AtoB else 'B_label'].to(self.device)
+        self.label_B = input['B_label' if AtoB else 'A_label'].to(self.device)
+
+        # bbox_label_A = masks_to_boxes(self.label_A[0])[0]
+        # self.label_A
+        # bbox_label_B = masks_to_boxes(self.label_B[0])[0]
 
     def forward(self):
         """Run forward pass; called by both functions <optimize_parameters> and <test>."""
@@ -135,7 +141,7 @@ class CycleGANModel(BaseModel):
             self.idt_A = self.netG_A(self.real_B)*self.label_B + self.real_B*(1-self.label_B)
             self.loss_idt_A = self.criterionIdt(self.idt_A * self.label_B, self.real_B * self.label_B) * lambda_B * lambda_idt
             # G_B should be identity if real_A is fed: ||G_B(A) - A||
-            self.idt_B = self.netG_B(self.real_A)*self.label_A + self.real_A*(1-self.label_B)
+            self.idt_B = self.netG_B(self.real_A)*self.label_A + self.real_A*(1-self.label_A)
             self.loss_idt_B = self.criterionIdt(self.idt_B * self.label_A, self.real_A * self.label_A) * lambda_A * lambda_idt
         else:
             self.loss_idt_A = 0
@@ -187,8 +193,8 @@ class CycleGANModel(BaseModel):
     def modify_commandline_options(parser, is_train: bool):
         """Add new model-specific options, and rewrite default values for existing options (details in BaseModel)"""
         if is_train:
-            parser.add_argument('--lambda_A', type=float, default=10000000.0, help='weight for cycle loss A->B->A')
-            parser.add_argument('--lambda_B', type=float, default=10000000.0, help='weight for cycle loss B->A->B')
+            parser.add_argument('--lambda_A', type=float, default=1000.0, help='weight for cycle loss A->B->A')
+            parser.add_argument('--lambda_B', type=float, default=1000.0, help='weight for cycle loss B->A->B')
             parser.add_argument('--lambda_identity', type=float, default=0.5, help='weight for identity loss: A <-> G_B-A(A) and B <-> G_A-B(B)')
         
         return parser

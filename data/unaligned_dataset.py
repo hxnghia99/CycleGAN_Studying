@@ -75,7 +75,7 @@ class UnalignedDataset(BaseDataset):
         A_image, A_label = self.data_transform(A_image, A_label)
         B_image, B_label = self.data_transform(B_image, B_label)
 
-        return {'A_image': A_image, 'B_image': B_image, 'A_label': A_label, 'B_label': B_label}
+        return {'A_image': A_image, 'B_image': B_image, 'A_label': A_label, 'B_label': B_label, 'A_path': A_path, 'B_path':B_path}
     
     def data_transform(self, image, label, itp_method=transform.InterpolationMode.BICUBIC):
         #resize
@@ -101,7 +101,7 @@ class UnalignedDataset(BaseDataset):
         #convert to tensor
         toTensor = transform.ToTensor()
         image = toTensor(image)
-        label = toTensor(label)
+        label = toTensor(label)*255.0
 
         #Normalize image
         normalize = transform.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))

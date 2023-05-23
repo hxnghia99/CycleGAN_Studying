@@ -1,2 +1,6 @@
 # Ignore pycache
 *.pyc
+
+checkpoints/
+
+datasets/
