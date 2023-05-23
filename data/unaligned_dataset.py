@@ -13,6 +13,9 @@ import random
 from PIL import Image
 import torchvision.transforms as transform
 from .base_dataset import BaseDataset, make_dataset_path
+from torchvision.ops import masks_to_boxes
+
+
 
 class UnalignedDataset(BaseDataset):
     """
@@ -72,10 +75,10 @@ class UnalignedDataset(BaseDataset):
         B_label = Image.open(B_label)
 
         #Apply identical transformation methods to both image and label
-        A_image, A_label = self.data_transform(A_image, A_label)
-        B_image, B_label = self.data_transform(B_image, B_label)
+        A_image, A_label, A_box = self.data_transform(A_image, A_label)
+        B_image, B_label, B_box = self.data_transform(B_image, B_label)
 
-        return {'A_image': A_image, 'B_image': B_image, 'A_label': A_label, 'B_label': B_label, 'A_path': A_path, 'B_path':B_path}
+        return {'A_image': A_image, 'B_image': B_image, 'A_label': A_label, 'B_label': B_label, 'A_path': A_path, 'B_path':B_path, 'A_box':A_box, 'B_box': B_box}
     
     def data_transform(self, image, label, itp_method=transform.InterpolationMode.BICUBIC):
         #resize
@@ -103,8 +106,15 @@ class UnalignedDataset(BaseDataset):
         image = toTensor(image)
         label = toTensor(label)*255.0
 
+
+        if label.max() == 0:
+            box = [[0., 0., 0., 0.]]
+        else:
+            box = masks_to_boxes(label)
+        # label[0,int(box[0][0]):int(box[0][2]),int(box[0][1]):int(box[0][3])] = 1
+
         #Normalize image
         normalize = transform.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         image = normalize(image)
 
-        return image, label
+        return image, label, box[0]

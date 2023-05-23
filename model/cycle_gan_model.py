@@ -87,6 +87,9 @@ class CycleGANModel(BaseModel):
         self.label_A = input['A_label' if AtoB else 'B_label'].to(self.device)
         self.label_B = input['B_label' if AtoB else 'A_label'].to(self.device)
 
+        self.box_A = input['A_box' if AtoB else 'B_box'].to(self.device)
+        self.box_B = input['B_box' if AtoB else 'A_box'].to(self.device)
+
         # bbox_label_A = masks_to_boxes(self.label_A[0])[0]
         # self.label_A
         # bbox_label_B = masks_to_boxes(self.label_B[0])[0]
