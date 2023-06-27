@@ -29,8 +29,8 @@ class BaseOptions():
         self.initialized = True
         """Define the common options that are used in both training and test."""
         # basic parameters
-        parser.add_argument('--dataroot', type=str, default="./datasets/nonfire2smallfire", required=False, help='path to images (should have subfolders trainA, trainB, valA, valB, etc)')
-        parser.add_argument('--name', type=str, default='nonfire2smallfire', help='name of the experiment. It decides where to store samples and models')
+        parser.add_argument('--dataroot', type=str, default="./datasets/nonfire2fire_bbox", required=False, help='path to images (should have subfolders trainA, trainB, valA, valB, etc)')
+        parser.add_argument('--name', type=str, default='nonfire2fire_bbox', help='name of the experiment. It decides where to store samples and models')
         parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
         parser.add_argument('--checkpoints_dir', type=str, default='./checkpoints', help='models are saved here')
         # model parameters
@@ -47,19 +47,23 @@ class BaseOptions():
         parser.add_argument('--init_gain', type=float, default=0.02, help='scaling factor for normal, xavier and orthogonal.')       
         # dataset parameters
         parser.add_argument('--dataset_mode', type=str, default='unaligned', help='chooses how datasets are loaded. [unaligned | aligned | single | colorization]')
+        parser.add_argument('--label_type', type=str, default='bbox', help='choose the type of annotation file to read. [bbox | segmentation]')
+        parser.add_argument('--process_mode', type=str, default='5', help='define training methods using whole image, bbox, segmentation,... : 0 (whole-image) | 1 (apply-seg-after-G) | 2 (apply-seg-before-G) | 3 (apply-bbox-after-G) | 4 (apply-bbox-before-G) | 5 (apply-bbox-crop-resize)')
         parser.add_argument('--direction', type=str, default='AtoB', help='AtoB or BtoA')
         parser.add_argument('--serial_batches', action='store_true', help='if true, takes images in order to make batches, otherwise takes them randomly')
         parser.add_argument('--num_threads', default=4, type=int, help='# threads for loading data')
         parser.add_argument('--batch_size', type=int, default=1, help='input batch size')
-        parser.add_argument('--load_size', type=int, default=448, help='scale images to this size')
+        parser.add_argument('--load_size', type=int, default=416, help='scale images to this size')
         parser.add_argument('--crop_size', type=int, default=416, help='then crop to this size')
         parser.add_argument('--max_dataset_size', type=int, default=float("inf"), help='Maximum number of samples allowed per dataset. If the dataset directory contains more than max_dataset_size, only a subset is loaded.')
-        parser.add_argument('--preprocess', type=str, default='resize_and_crop_and_hflip', help='scaling and cropping of images at load time [resize_and_crop | crop | scale_width | scale_width_and_crop | none]')
+        parser.add_argument('--preprocess', type=str, default='resize_and_hflip', help='scaling and cropping of images at load time [resize_and_crop | crop | scale_width | scale_width_and_crop | none]')
         # additional parameters
         parser.add_argument('--epoch', type=str, default='latest', help='which epoch to load? set to latest to use latest cached model')
         parser.add_argument('--load_iter', type=int, default='0', help='which iteration to load? if load_iter > 0, the code will load models by iter_[load_iter]; otherwise, the code will load models by [epoch]')
         parser.add_argument('--verbose', action='store_true', help='if specified, print more debugging information')
         parser.add_argument('--suffix', default='', type=str, help='customized suffix: opt.name = opt.name + suffix: e.g., {model}_{netG}_size{load_size}')
+
+        
 
         return parser
     

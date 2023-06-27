@@ -14,8 +14,11 @@ from PIL import Image
 import torchvision.transforms as transform
 from .base_dataset import BaseDataset, make_dataset_path
 from torchvision.ops import masks_to_boxes
+import numpy as np
+import torch
+import json
 
-
+from torchvision.utils import draw_bounding_boxes
 
 class UnalignedDataset(BaseDataset):
     """
@@ -43,6 +46,8 @@ class UnalignedDataset(BaseDataset):
         input_nc = self.opt.output_nc if BtoA_flag else self.opt.input_nc
         output_nc = self.opt.input_nc if BtoA_flag else self.opt.output_nc
 
+        self.label_type = opt.label_type
+
     def __len__(self) -> int:
         """Return the total number of images in the dataset: maximum of two different number of images from two domain"""
         return max(self.A_size, self.B_size)
@@ -68,19 +73,72 @@ class UnalignedDataset(BaseDataset):
         A_image = Image.open(A_path).convert("RGB")
         B_image = Image.open(B_path).convert("RGB")
 
-        #Read labels
-        A_label = A_path.split("jpg")[0] + "png"
-        A_label = Image.open(A_label)
-        B_label = B_path.split("jpg")[0] + "png"
-        B_label = Image.open(B_label)
+        if self.label_type == "bbox":
+            #A
+            A_name = A_path.split("\\")[-1].split(".png")[0] if ".png" in A_path else A_path.split("\\")[-1].split(".jpg")[0]
+            A_label_path = "/".join(A_path.split("\\")[0:-1]) + "/labels/" + A_name + ".json"
+            A_label_info = json.load(open(A_label_path,'r'))
+            xmin,ymin,xmax,ymax = A_label_info['bbox']
+            size = A_label_info['width_height']
+            
+            A_label = np.zeros(size, dtype=np.uint8)
+            A_label[xmin:xmax+1, ymin:ymax+1] = 1 #* 255
+            A_label = Image.fromarray(A_label.T, mode="L")
+            #B
+            B_name = B_path.split("\\")[-1].split(".png")[0] if ".png" in B_path else B_path.split("\\")[-1].split(".jpg")[0]
+            B_label_path = "/".join(B_path.split("\\")[0:-1]) + "/labels/" + B_name + ".json"
+            B_label_info = json.load(open(B_label_path,'r'))
+            xmin,ymin,xmax,ymax = B_label_info['bbox']
+            size = B_label_info['width_height']
+            
+            B_label = np.zeros(size, dtype=np.uint8)
+            B_label[xmin:xmax+1, ymin:ymax+1] = 1 #* 255
+            B_label = Image.fromarray(B_label.T, mode="L")
 
-        #Apply identical transformation methods to both image and label
-        A_image, A_label, A_box = self.data_transform(A_image, A_label)
-        B_image, B_label, B_box = self.data_transform(B_image, B_label)
 
+            # A_image = transform.ToPILImage()(draw_bounding_boxes(transform.PILToTensor()(A_image), torch.tensor([A_label_info['bbox']]), width=5, colors='blue'))
+            # A_image.show()
+            # A_label.show()
+            # print("Test")
+
+            # B_image = transform.ToPILImage()(draw_bounding_boxes(transform.PILToTensor()(B_image), torch.tensor([B_label_info['bbox']]), width=5, colors='blue'))
+            # B_image.show()
+            # B_label.show()
+            # print("Test")
+
+            #Apply identical transformation methods to both image and label
+            A_image, A_label, A_box = self.data_transform(A_image, A_label, A_path)
+            B_image, B_label, B_box = self.data_transform(B_image, B_label, B_path)
+            
+        elif self.label_type == "segmentation": 
+            #A
+            A_name = A_path.split("\\")[-1].split(".png")[0] if ".png" in A_path else A_path.split("\\")[-1].split(".jpg")[0]
+            A_label_path = "/".join(A_path.split("\\")[0:-1]) + "/labels/" + A_name + ".png"
+            A_label = Image.open(A_label_path)
+            #B
+            B_name = B_path.split("\\")[-1].split(".png")[0] if ".png" in B_path else B_path.split("\\")[-1].split(".jpg")[0]
+            B_label_path = "/".join(B_path.split("\\")[0:-1]) + "/labels/" + B_name + ".png"
+            B_label = Image.open(B_label_path)
+
+            #Apply identical transformation methods to both image and label
+            A_image, A_label, A_box = self.data_transform(A_image, A_label, A_path)
+            B_image, B_label, B_box = self.data_transform(B_image, B_label, B_path)
+
+            # test = Image.fromarray(np.array(B_label[0].to('cpu'))*255.0)
+            # test.show()
+            # print("a")
+        
+        elif self.label_type == "None":
+            A_label=None
+            A_box=None
+
+        else:
+            raise NotImplementedError("Do not implement the label type for training...")
+            
         return {'A_image': A_image, 'B_image': B_image, 'A_label': A_label, 'B_label': B_label, 'A_path': A_path, 'B_path':B_path, 'A_box':A_box, 'B_box': B_box}
-    
-    def data_transform(self, image, label, itp_method=transform.InterpolationMode.BICUBIC):
+        
+
+    def data_transform(self, image, label, image_path, itp_method=transform.InterpolationMode.BICUBIC):
         #resize
         if 'resize' in self.opt.preprocess:
             osize = [self.opt.load_size, self.opt.load_size]
@@ -104,14 +162,13 @@ class UnalignedDataset(BaseDataset):
         #convert to tensor
         toTensor = transform.ToTensor()
         image = toTensor(image)
-        label = toTensor(label)*255.0
+        label = toTensor(label)*255.0           #scale 0->1
+        label.type(torch.uint8)
 
+        if label.max()==0:
+            raise NotImplementedError("Error when creating label in transform func()..........")
 
-        if label.max() == 0:
-            box = [[0., 0., 0., 0.]]
-        else:
-            box = masks_to_boxes(label)
-        # label[0,int(box[0][0]):int(box[0][2]),int(box[0][1]):int(box[0][3])] = 1
+        box = masks_to_boxes(label)
 
         #Normalize image
         normalize = transform.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))

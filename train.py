@@ -17,6 +17,11 @@ from model import create_model
 from utils.visualizer import Visualizer
 import time
 
+import torch
+torch.cuda.set_device(0)
+
+#bbox mask + whole image
+
 
 if __name__ == "__main__":
     opt = TrainOptions().parse()

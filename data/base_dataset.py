@@ -86,7 +86,7 @@ IMG_EXTENSIONS = [
     '.jpg', '.JPG', '.jpeg', '.JPEG',
     '.ppm', '.PPM', '.bmp', '.BMP',
     '.tif', '.TIF', '.tiff', '.TIFF',
-    #'.png', '.PNG',
+    '.png', '.PNG',
 ]
 def is_image_file(filename: str) -> bool:
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
